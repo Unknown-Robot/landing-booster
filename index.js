@@ -1,12 +1,12 @@
 import { rm, access, readFile, writeFile, readdir, stat } from "fs/promises";
+import ansiEscapes from "ansi-escapes";
 import { exec } from "child_process";
+import model from "./config.cjs";
 import inquirer from "inquirer";
-import ansiEscapes from 'ansi-escapes';
 import { constants } from "fs";
 import { resolve } from "path";
 import chalk from "chalk";
 import util from "util";
-import { exit } from "process";
 
 /* Transform exec function to promise */
 const pipe = util.promisify(exec);
@@ -19,7 +19,7 @@ const __bin = `${__dirname}\\node_modules\\.bin`;
 function formatBytes(bytes, decimals = 2) {
     if(bytes === 0) return "0 Bytes";
     const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
+    const dm = (decimals < 0)? 0: decimals;
     const sizes = ["Bytes", "Ko", "Mo", "Go", "To", "Po", "Eo", "Zo", "Yo"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
@@ -48,12 +48,13 @@ const clean = () => {
 
 /* Main entry app */
 const main = async () => {
-    let execution = Math.floor(Date.now() / 1000);
+    let execution = 0;
     let config = null;
     let landingPath = null;
     let scriptOutput = [];
 
     /* Sharp output */
+    let sharpCommands = [];
     let sharpOutput = [];
     let sharpSaved = 0;
 
@@ -72,12 +73,14 @@ const main = async () => {
     };
 
     try {
+        /* Try to read config.json */
         let data = await readFile(__dirname + "\\config.json", "utf-8");
+        /* Try to parse file data */
         config = JSON.parse(data);
     }
     catch(error) {
-        log("Missing config.json file, please download or rebase from Github repository.", "error");
-        exit();
+        /* If catch any error, config is default model from config.cjs */
+        config = model;
     }
 
     const find = (data, key, value) => {
@@ -138,10 +141,7 @@ const main = async () => {
                     return "Please enter a valid landing folder path";
                 }
             });
-
-            if(addProcess.hasOwnProperty("new_path")) {
-                landingPath = addProcess["new_path"];
-            }
+            landingPath = addProcess["new_path"];
         }
         /* Find text path, inquirer return index select in choices */
         else {
@@ -165,9 +165,10 @@ const main = async () => {
         }
         catch(error) {}
 
+        /* Init execution timer */
+        execution = Math.floor(Date.now() / 1000);
         /* Reset history script, replace with new executed script */
         config["history"]["script"] = [];
-
         /* Perform all booster script */
         for(let i = 0; i < landingProcess["script"].length; i++) {
             /* Remove information text */
@@ -178,20 +179,20 @@ const main = async () => {
             /* Create loader each script selected */
             loader = createLoader(`Run script : ${script}`);
 
-            /* Perform script in local node_modules binary folder (Avoid install global) */
+            /* Perform script in local node_modules binary folder (Avoid global installation) */
             try {
                 /* babel script is required because, for now, he is the one who copies the folders and files */
                 if(script === "babel") {
-                    command = `${__bin}\\babel ${landingPath} --out-dir ${landingBuildPath} --copy-files --config-file ./babel.config.json --ignore ${config["ignore"].join(",")}`;
+                    command = `${__bin}\\babel "${landingPath}" --out-dir "${landingBuildPath}" --copy-files --config-file ./babel.config.json --ignore ${config["ignore"].join(",")}`;
                 }
                 if(script.substr(script.length - 3) === "css") {
+                    /* Check if css folder exist in build folder */
                     await access(landingBuildPath + "\\css", constants.R_OK | constants.W_OK);
                     if(script === "purgecss") {
-                        command = `${__bin}\\purgecss --css "${landingBuildPath + "\\**\\//*.css"}" --content "${landingBuildPath + "\\**\\*.html"}" "${landingBuildPath + "\\**\\*.php"}" "${landingBuildPath + "\\**\\*.js"}" --output ${landingBuildPath + "\\css"} --config ./purgecss.config.cjs`;
+                        command = `${__bin}\\purgecss --css "${landingBuildPath + "\\**\\//*.css"}" --content "${landingBuildPath + "\\**\\*.html"}" "${landingBuildPath + "\\**\\*.php"}" "${landingBuildPath + "\\**\\*.js"}" --output "${landingBuildPath + "\\css"}" --config ./purgecss.config.cjs`;
                     }
                     if(script === "postcss") {
-                        
-                        command = `${__bin}\\postcss ${landingBuildPath + "\\css"} --dir ${landingBuildPath + "\\css"} --config ./postcss.config.cjs`;
+                        command = `${__bin}\\postcss "${landingBuildPath + "\\css"}" --dir "${landingBuildPath + "\\css"}" --config ./postcss.config.cjs`;
                     }
                 }
                 if(script === "sharp") {
@@ -203,11 +204,13 @@ const main = async () => {
                             if(file.isFile()) {
                                 let source = path + `\\${file.name}`;
                                 let output = path + `\\${file.name.split(".")[0]}.webp`;
-                                await pipe(`${__bin}\\sharp --input ${source} --output ${output}`);
+                                let cmd = `${__bin}\\sharp --input "${source}" --output "${output}"`;
+                                await pipe(cmd);
                                 let sourceSize = await stat(source);
                                 let outputSize = await stat(output);
                                 sharpSaved = sharpSaved + (sourceSize.size - outputSize.size);
                                 if(config["output"] === true) {
+                                    sharpCommands.push(cmd);
                                     sharpOutput.push(`Found ${file.name} [${formatBytes(sourceSize.size)}] transform to .webp [${formatBytes(outputSize.size)}]`);
                                 }
                             }
@@ -221,7 +224,6 @@ const main = async () => {
 
                 if(command) {
                     processus = await pipe(command);
-                    scriptOutput.push(processus);
                 }
 
                 /* Update script if not exist in config.json */
@@ -238,12 +240,16 @@ const main = async () => {
                         for(let w = 0; w < lines.length; w++) {
                             log(`  ${lines[w]}`, "output");
                         }
+                        scriptOutput.push({ "script": script, "command": command, "sdtout": (lines.length)? lines: "", "stderr": (processus.stderr)? processus.stderr: "" });
                     }
                     else if(script === "sharp") {
                         for(let w = 0; w < sharpOutput.length; w++) {
                             log(`  ${sharpOutput[w]}`, "output");
                         }
-                        log(`  Total size saved [${formatBytes(sharpSaved)}] !`, "output");
+                        let str = `Total size saved [${formatBytes(sharpSaved)}] !`;
+                        sharpOutput.push(str);
+                        log(`  ${str}`, "output");
+                        scriptOutput.push({ "script": script, "command": sharpCommands, "sdtout": sharpOutput, "stderr": "" });
                     }
                 }
             }
@@ -255,8 +261,20 @@ const main = async () => {
                 clean();
                 log(`Run script : ${script} ✖`, "error", " : ");
                 if(error.stderr) {
-                    log(`  ${error.stderr.split("\n")[0]}`, "error");
-                    scriptOutput.push({ sdtout: error.stdout, stderr: error.stderr });
+                    let errors = error.stderr.split("\n");
+                    for(let w = 0; w < errors.length; w++) {
+                        if(w === 0) log(`  Error : ${errors[w]}`, "error");
+                        else log(`  ${errors[w]}`, "error");
+                    }
+                    scriptOutput.push({ "script": script, "command": command, "sdtout": (error.stdout)? error.stdout: "", "stderr": error.stderr });
+                }
+                else if(error.message) {
+                    let errors = error.message.split("\n");
+                    for(let w = 0; w < errors.length; w++) {
+                        if(w === 0) log(`  Error : ${errors[w]}`, "error");
+                        else log(`  ${errors[w]}`, "error");
+                    }
+                    scriptOutput.push({ "script": script, "command": (command)? command: (script === "sharp")? sharpCommands: "", "sdtout": (error.stdout)? error.stdout: "", "stderr": error.message });
                 }
                 /* console.error(error); */
             }
@@ -271,9 +289,8 @@ const main = async () => {
                     config["history"]["path"].splice(i, 1);
                 }
             }
-            return main();
         }
-        console.error(error);
+        /* console.error(error); */
     }
     finally {
         clearInterval(loader);
@@ -281,12 +298,39 @@ const main = async () => {
         process.stderr.write(ansiEscapes.cursorShow);
         /* Write perform landing history in config.json */
         await writeFile(__dirname + "\\config.json", JSON.stringify(config, null, 4), "utf-8");
-        /* console.log(scriptOutput); */
+        /* Write sdtout and sdterr output in log file */
+        if(config["output"] === true) {
+            await writeFile(__dirname + "\\output.json", JSON.stringify(scriptOutput, null, 4), "utf-8");
+        }
+        /* Show execution time */
         let elapsed = Math.floor(Date.now() / 1000) - execution;
-        log(`Execution time : ${elapsed} seconds !`, (elapsed <= 20)? "valid": (elapsed <= 30)? "output": "error", " : ");
+        if(execution > 0) {
+            log(`Execution time : ${elapsed} seconds !`, (elapsed <= 25)? "valid": (elapsed <= 50)? "output": "error", " : ");
+        }
+        /* Jump line \n */
+        console.log("");
+        /* Restart landing booster */
+        let restartProcess = await inquirer.prompt({
+            type: "input",
+            name: "retry",
+            message: "Need start again [Y/n] ?",
+            default() {
+                return "yes";
+            }
+        });
+
+        if(restartProcess["retry"].includes("yes") || restartProcess["retry"] === "y") {
+            return await main();
+        }
+
+        /* Notify user need update images path in the landing source code */
+        if(config["history"]["script"].includes("babel")) {
+            log(`[Warning] : There is always a possibility of javascript error after transformation, sometimes it is necessary to add babel plugins to support some javascript functions.`, "output");
+            log(`[Warning] : Please always check your landing before production.`, "output");
+        }
         /* Notify user need update images path in the landing source code */
         if(config["history"]["script"].includes("sharp")) {
-            log(`\n[Warning] If you want use optimized images, you need update filename path in the landing source code.`, "output");
+            log(`[Warning] : If you want use optimized images, you need update filename path in the landing source code.`, "output");
         }
     }
 };

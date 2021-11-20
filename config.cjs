@@ -1,5 +1,6 @@
-{
-    "output": true,
+/* Configuration file model */
+module.exports = {
+    "output": false,
     "scripts": [
         {
             "command": "babel",
@@ -19,14 +20,8 @@
         }
     ],
     "history": {
-        "path": [
-            "C:\\Wamp\\www\\pac\\lan",
-            "C:\\Wamp\\www\\pac\\lan\\29",
-            "C:\\Wamp\\www\\fen\\lan\\57"
-        ],
-        "script": [
-            "babel"
-        ]
+        "path": [],
+        "script": []
     },
     "ignore": [
         "\\**\\*.min.js",
@@ -38,4 +33,4 @@
         "\\**\\mask\\*",
         "\\**\\jquery-ui\\*"
     ]
-}
+};
