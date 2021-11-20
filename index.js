@@ -340,6 +340,8 @@ const main = async () => {
             }
         });
         if(restartProcess["retry"].includes("yes") || restartProcess["retry"] === "y") {
+            /* Jump line */
+            console.log("");
             return await main();
         }
         /* Jump line */
