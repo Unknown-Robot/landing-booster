@@ -23,14 +23,5 @@ module.exports = {
         "path": [],
         "script": []
     },
-    "ignore": [
-        "\\**\\*.min.js",
-        "\\**\\jquery*.js",
-        "\\**\\bootstrap*.js",
-        "\\**\\md5*.js",
-        "\\**\\owl.carousel*.js",
-        "\\**\\build",
-        "\\**\\mask\\*",
-        "\\**\\jquery-ui\\*"
-    ]
+    "ignore": []
 };

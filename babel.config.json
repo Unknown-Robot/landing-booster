@@ -2,7 +2,7 @@
     "comments": false,
     "minified": true,
     "sourceMaps": false,
-    "plugins": ["@babel/plugin-transform-runtime", "babel-plugin-remove-unused-vars"],
+    "plugins": ["minify-dead-code-elimination"],
     "presets": [
         ["@babel/preset-env", {
             "debug": true,
