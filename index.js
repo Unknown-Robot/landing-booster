@@ -327,7 +327,7 @@ const main = async () => {
             /* Show execution time */
             let elapsed = Math.floor(Date.now() / 1000) - execution;
             if(execution > 0) {
-                log(`Execution time : ${elapsed} seconds !`, (elapsed <= 25)? "valid": (elapsed <= 50)? "output": "error", " : ");
+                log(`Execution time : ${elapsed} seconds !`);
             }
             /* Show total size saved */
             let sourceSize = await folderSize(landingPath);
@@ -369,5 +369,5 @@ const main = async () => {
 };
 
 console.clear();
-log("\n  Start landing booster..");
+log("\n  Start landing booster 🚀");
 main();
