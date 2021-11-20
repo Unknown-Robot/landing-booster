@@ -92,6 +92,23 @@ const main = async () => {
         return null;
     }
 
+    const folderSize = async(path) => {
+        let size = 0;
+        const files = await readdir(path, { encoding: "utf8", withFileTypes: true });
+        for(let i = 0; i < files.length; i++) {
+            let file = files[i];
+            if(file.isFile()) {
+                let source = path + `\\${file.name}`;
+                let sourceSize = await stat(source);
+                size = size + sourceSize.size;
+            }
+            else if(file.name != "build") {
+                size = size + await folderSize(path + "\\" + file.name);
+            }
+        }
+        return size;
+    }
+
     /* Booster process */
     const steps = [
         {
@@ -209,10 +226,9 @@ const main = async () => {
                                 let sourceSize = await stat(source);
                                 let outputSize = await stat(output);
                                 sharpSaved = sharpSaved + (sourceSize.size - outputSize.size);
-                                if(config["output"] === true) {
-                                    sharpCommands.push(cmd);
-                                    sharpOutput.push(`Found ${file.name} [${formatBytes(sourceSize.size)}] transform to .webp [${formatBytes(outputSize.size)}]`);
-                                }
+                                sharpCommands.push(cmd);
+                                sharpOutput.push(`Found ${file.name} [${formatBytes(sourceSize.size)}] transform to .webp [${formatBytes(outputSize.size)}]`);
+                                await rm(source);
                             }
                             else {
                                 await transformFolder(path + "\\" + file.name);
@@ -234,23 +250,26 @@ const main = async () => {
                 clearTimeout(loader);
                 clean();
                 log(`Run script : ${script} ✔`, "valid", " : ");
-                if(config["output"] === true) {
-                    if(processus && processus.stdout) {
-                        let lines = processus.stdout.split("\n");
+                
+                if(processus && processus.stdout) {
+                    let lines = processus.stdout.split("\n");
+                    if(config["output"] === true) {
                         for(let w = 0; w < lines.length; w++) {
                             log(`  ${lines[w]}`, "output");
                         }
-                        scriptOutput.push({ "script": script, "command": command, "sdtout": (lines.length)? lines: "", "stderr": (processus.stderr)? processus.stderr: "" });
                     }
-                    else if(script === "sharp") {
+                    scriptOutput.push({ "script": script, "command": command, "sdtout": (lines.length)? lines: "", "stderr": (processus.stderr)? processus.stderr: "" });
+                }
+                else if(script === "sharp") {
+                    let str = `Total size saved [${formatBytes(sharpSaved)}] !`;
+                    if(config["output"] === true) {
                         for(let w = 0; w < sharpOutput.length; w++) {
                             log(`  ${sharpOutput[w]}`, "output");
                         }
-                        let str = `Total size saved [${formatBytes(sharpSaved)}] !`;
-                        sharpOutput.push(str);
                         log(`  ${str}`, "output");
-                        scriptOutput.push({ "script": script, "command": sharpCommands, "sdtout": sharpOutput, "stderr": "" });
                     }
+                    sharpOutput.push(str);
+                    scriptOutput.push({ "script": script, "command": sharpCommands, "sdtout": sharpOutput, "stderr": "" });
                 }
             }
             catch(error) {
@@ -299,15 +318,17 @@ const main = async () => {
         /* Write perform landing history in config.json */
         await writeFile(__dirname + "\\config.json", JSON.stringify(config, null, 4), "utf-8");
         /* Write sdtout and sdterr output in log file */
-        if(config["output"] === true) {
-            await writeFile(__dirname + "\\output.json", JSON.stringify(scriptOutput, null, 4), "utf-8");
-        }
+        await writeFile(__dirname + "\\output.json", JSON.stringify(scriptOutput, null, 4), "utf-8");
         /* Show execution time */
         let elapsed = Math.floor(Date.now() / 1000) - execution;
         if(execution > 0) {
             log(`Execution time : ${elapsed} seconds !`, (elapsed <= 25)? "valid": (elapsed <= 50)? "output": "error", " : ");
         }
-        /* Jump line \n */
+        /* Show total size saved */
+        let sourceSize = await folderSize(landingPath);
+        let buildSize = await folderSize(landingPath + "\\build");
+        log(`Total size saved : ${formatBytes(sourceSize - buildSize)}`);
+        /* Jump line */
         console.log("");
         /* Restart landing booster */
         let restartProcess = await inquirer.prompt({
@@ -318,20 +339,17 @@ const main = async () => {
                 return "yes";
             }
         });
-
         if(restartProcess["retry"].includes("yes") || restartProcess["retry"] === "y") {
             return await main();
         }
-
-        /* Notify user need update images path in the landing source code */
-        if(config["history"]["script"].includes("babel")) {
-            log(`[Warning] : There is always a possibility of javascript error after transformation, sometimes it is necessary to add babel plugins to support some javascript functions.`, "output");
-            log(`[Warning] : Please always check your landing before production.`, "output");
-        }
+        /* Jump line */
+        console.log("");
         /* Notify user need update images path in the landing source code */
         if(config["history"]["script"].includes("sharp")) {
-            log(`[Warning] : If you want use optimized images, you need update filename path in the landing source code.`, "output");
+            log(`Warning : If you want use optimized images, you need update filename path in the landing source code.`, "output");
         }
+        log(`Warning : There is always a possibility of javascript error after transformation, sometimes it is necessary to add babel plugins to support some javascript functions.`, "output");
+        log(`Warning : Please always check your landing before production.`, "output");
     }
 };
 
