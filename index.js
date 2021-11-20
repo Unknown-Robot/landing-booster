@@ -8,6 +8,12 @@ import { resolve } from "path";
 import chalk from "chalk";
 import util from "util";
 
+/* 
+    TODO: 
+        - Fix empty sdtout for purgecss and postcss
+        
+*/
+
 /* Transform exec function to promise */
 const pipe = util.promisify(exec);
 
@@ -15,12 +21,12 @@ const pipe = util.promisify(exec);
 const __dirname = resolve();
 const __bin = `${__dirname}\\node_modules\\.bin`;
 
-/* Convert bytes to  */
+/* Convert bytes format to string */
 function formatBytes(bytes, decimals = 2) {
     if(bytes === 0) return "0 Bytes";
     const k = 1024;
     const dm = (decimals < 0)? 0: decimals;
-    const sizes = ["Bytes", "Ko", "Mo", "Go", "To", "Po", "Eo", "Zo", "Yo"];
+    const sizes = ["Bytes", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 }
@@ -83,6 +89,7 @@ const main = async () => {
         config = model;
     }
 
+    /* Find item in object from key == value */
     const find = (data, key, value) => {
         for(let i = 0; i < data.length; i++) {
             if(data[i][key] == value) {
@@ -92,6 +99,7 @@ const main = async () => {
         return null;
     }
 
+    /* Get folder Bytes size from path */
     const folderSize = async(path) => {
         let size = 0;
         const files = await readdir(path, { encoding: "utf8", withFileTypes: true });
@@ -109,6 +117,7 @@ const main = async () => {
         return size;
     }
 
+    /* Remove specify path to history["path"] */
     const removePath = (path) => {
         for(let i = 0; i < config["history"]["path"].length; i++) {
             if(config["history"]["path"][i] == path) {
@@ -117,7 +126,7 @@ const main = async () => {
         }
     }
 
-    /* Booster process */
+    /* Console steps */
     const steps = [
         {
             type: "list",
@@ -147,6 +156,7 @@ const main = async () => {
         }
     ];
 
+    /* Sanitize path to Windows format */
     const sanitizePath = (path) => {
         return path.replace("/", "\\").replace("\/", "\\");
     }
@@ -156,6 +166,7 @@ const main = async () => {
         let landingProcess = await inquirer.prompt(steps);
         /* Create new landing folder path */
         if(landingProcess["path"] === "Insert new path") {
+            /* New folder path input */
             let addProcess = await inquirer.prompt({
                 type: "input",
                 name: "new_path",
@@ -168,7 +179,6 @@ const main = async () => {
             });
             landingPath = addProcess["new_path"];
         }
-        /* Find text path, inquirer return index select in choices */
         else {
             landingPath = landingProcess["path"];
         }
@@ -327,12 +337,14 @@ const main = async () => {
             /* Show execution time */
             let elapsed = Math.floor(Date.now() / 1000) - execution;
             if(execution > 0) {
-                log(`Execution time : ${elapsed} seconds !`);
+                log(`Execution time : ${elapsed} seconds`);
             }
             /* Show total size saved */
             let sourceSize = await folderSize(landingPath);
             let buildSize = await folderSize(landingPath + "\\build");
             log(`Total size saved : ${formatBytes(sourceSize - buildSize)}`);
+            /* Show console cursor */
+            process.stderr.write(ansiEscapes.cursorShow);
             /* Jump line */
             console.log("");
             /* Restart landing booster */
@@ -351,7 +363,7 @@ const main = async () => {
             }
         }
         else {
-            /* Restart after throw landing path error */
+            /* Restart after throw cannot access landing path error */
             return await main();
         }
         
@@ -362,8 +374,8 @@ const main = async () => {
             /* (\.png|\.jpg) => .webp */
             log(`Warning : Replace all optimized images file extension with ".webp" in the landing source code.`, "output");
         }
-        log(`Warning : There is always a possibility of javascript error after transformation, sometimes it is necessary to add babel plugins to support some javascript functions.`, "output");
-        log(`Warning : Please always check your landing before production.`, "output");
+        log(`Warning : There is always a possibility of javascript error after transformation, sometimes it is necessary to add new babel plugins to support some javascript functions.`, "output");
+        log(`Warning : Please always check your landing before transfer to production.`, "output");
         /* Show console cursor */
         process.stderr.write(ansiEscapes.cursorShow);
     }
