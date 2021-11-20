@@ -344,13 +344,14 @@ const main = async () => {
                     return "yes";
                 }
             });
-            if(restartProcess["retry"].includes("yes") || restartProcess["retry"] === "y") {
+            if(restartProcess["retry"].includes("yes") || restartProcess["retry"].toLowerCase() === "y") {
                 /* Jump line */
                 console.log("");
                 return await main();
             }
         }
         else {
+            /* Restart after throw landing path error */
             return await main();
         }
         
