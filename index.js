@@ -79,7 +79,7 @@ const main = async () => {
         config = JSON.parse(data);
     }
     catch(error) {
-        /* If catch any error, config is default model from config.cjs */
+        /* If catch any error, config default model in config.cjs */
         config = model;
     }
 
@@ -107,6 +107,14 @@ const main = async () => {
             }
         }
         return size;
+    }
+
+    const removePath = (path) => {
+        for(let i = 0; i < config["history"]["path"].length; i++) {
+            if(config["history"]["path"][i] == path) {
+                config["history"]["path"].splice(i, 1);
+            }
+        }
     }
 
     /* Booster process */
@@ -166,11 +174,10 @@ const main = async () => {
         }
         /* Test if landing path exist now */
         await access(landingPath, constants.R_OK | constants.W_OK);
-        /* Update path if not exist in config.json */
-        if(!config["history"]["path"].includes(landingPath)) {
-            /* Push path to top array in config.json */
-            config["history"]["path"].unshift(landingPath);
-        }
+        /* Remove path if exist in config.json */
+        removePath(landingPath);
+        /* Push path to top array in config.json */
+        config["history"]["path"].unshift(landingPath);
         /* Set landing build path */
         let landingBuildPath = landingPath + "\\build";
         /* Hide console cursor */
@@ -200,13 +207,13 @@ const main = async () => {
             try {
                 /* babel script is required because, for now, he is the one who copies the folders and files */
                 if(script === "babel") {
-                    command = `${__bin}\\babel "${landingPath}" --out-dir "${landingBuildPath}" --copy-files --config-file ./babel.config.json --ignore ${config["ignore"].join(",")}`;
+                    command = `${__bin}\\babel "${landingPath}" --out-dir "${landingBuildPath}" --copy-files --config-file ./babel.config.json ${(config["ignore"].length)? `--ignore ${config["ignore"].join(",")}`: ""}`;
                 }
                 if(script.substr(script.length - 3) === "css") {
                     /* Check if css folder exist in build folder */
                     await access(landingBuildPath + "\\css", constants.R_OK | constants.W_OK);
                     if(script === "purgecss") {
-                        command = `${__bin}\\purgecss --css "${landingBuildPath + "\\**\\//*.css"}" --content "${landingBuildPath + "\\**\\*.html"}" "${landingBuildPath + "\\**\\*.php"}" "${landingBuildPath + "\\**\\*.js"}" --output "${landingBuildPath + "\\css"}" --config ./purgecss.config.cjs`;
+                        command = `${__bin}\\purgecss --css "${landingBuildPath + "\\css\\*.css"}" "${landingBuildPath + "\\css\\*.min.css"}" --content "${landingBuildPath + "\\**\\*.html"}" "${landingBuildPath + "\\**\\*.php"}" "${landingBuildPath + "\\**\\*.js"}" --output "${landingBuildPath + "\\css"}" --config ./purgecss.config.cjs`;
                     }
                     if(script === "postcss") {
                         command = `${__bin}\\postcss "${landingBuildPath + "\\css"}" --dir "${landingBuildPath + "\\css"}" --config ./postcss.config.cjs`;
@@ -219,6 +226,7 @@ const main = async () => {
                         for(let i = 0; i < files.length; i++) {
                             let file = files[i];
                             if(file.isFile()) {
+                                if(file.name.includes(".svg")) continue;
                                 let source = path + `\\${file.name}`;
                                 let output = path + `\\${file.name.split(".")[0]}.webp`;
                                 let cmd = `${__bin}\\sharp --input "${source}" --output "${output}"`;
@@ -261,7 +269,7 @@ const main = async () => {
                     scriptOutput.push({ "script": script, "command": command, "sdtout": (lines.length)? lines: "", "stderr": (processus.stderr)? processus.stderr: "" });
                 }
                 else if(script === "sharp") {
-                    let str = `Total size saved [${formatBytes(sharpSaved)}] !`;
+                    let str = `Total image size saved [${formatBytes(sharpSaved)}] !`;
                     if(config["output"] === true) {
                         for(let w = 0; w < sharpOutput.length; w++) {
                             log(`  ${sharpOutput[w]}`, "output");
@@ -302,56 +310,61 @@ const main = async () => {
     catch(error) {
         if(error.code === "ENOENT") {
             log("Cannot access landing folder, please check your folder path.", "error");
-            /* Remove broken path in history if exist */
-            for(let i = 0; i < config["history"]["path"].length; i++) {
-                if(config["history"]["path"][i] == landingPath) {
-                    config["history"]["path"].splice(i, 1);
-                }
-            }
+            /* Remove broken path if exist in history */
+            removePath(landingPath);
+            landingPath = null;
         }
         /* console.error(error); */
     }
     finally {
         clearInterval(loader);
-        /* Show console cursor */
-        process.stderr.write(ansiEscapes.cursorShow);
         /* Write perform landing history in config.json */
         await writeFile(__dirname + "\\config.json", JSON.stringify(config, null, 4), "utf-8");
         /* Write sdtout and sdterr output in log file */
         await writeFile(__dirname + "\\output.json", JSON.stringify(scriptOutput, null, 4), "utf-8");
-        /* Show execution time */
-        let elapsed = Math.floor(Date.now() / 1000) - execution;
-        if(execution > 0) {
-            log(`Execution time : ${elapsed} seconds !`, (elapsed <= 25)? "valid": (elapsed <= 50)? "output": "error", " : ");
-        }
-        /* Show total size saved */
-        let sourceSize = await folderSize(landingPath);
-        let buildSize = await folderSize(landingPath + "\\build");
-        log(`Total size saved : ${formatBytes(sourceSize - buildSize)}`);
-        /* Jump line */
-        console.log("");
-        /* Restart landing booster */
-        let restartProcess = await inquirer.prompt({
-            type: "input",
-            name: "retry",
-            message: "Need start again [Y/n] ?",
-            default() {
-                return "yes";
+
+        if(landingPath) {
+            /* Show execution time */
+            let elapsed = Math.floor(Date.now() / 1000) - execution;
+            if(execution > 0) {
+                log(`Execution time : ${elapsed} seconds !`, (elapsed <= 25)? "valid": (elapsed <= 50)? "output": "error", " : ");
             }
-        });
-        if(restartProcess["retry"].includes("yes") || restartProcess["retry"] === "y") {
+            /* Show total size saved */
+            let sourceSize = await folderSize(landingPath);
+            let buildSize = await folderSize(landingPath + "\\build");
+            log(`Total size saved : ${formatBytes(sourceSize - buildSize)}`);
             /* Jump line */
             console.log("");
+            /* Restart landing booster */
+            let restartProcess = await inquirer.prompt({
+                type: "input",
+                name: "retry",
+                message: "Need start again [Y/n] ?",
+                default() {
+                    return "yes";
+                }
+            });
+            if(restartProcess["retry"].includes("yes") || restartProcess["retry"] === "y") {
+                /* Jump line */
+                console.log("");
+                return await main();
+            }
+        }
+        else {
             return await main();
         }
+        
         /* Jump line */
         console.log("");
         /* Notify user need update images path in the landing source code */
         if(config["history"]["script"].includes("sharp")) {
-            log(`Warning : If you want use optimized images, you need update filename path in the landing source code.`, "output");
+            /* (\.png|\.jpg) => .webp */
+            log(`Warning : Replace all optimized images file extension with ".webp" in the landing source code.`, "output");
         }
         log(`Warning : There is always a possibility of javascript error after transformation, sometimes it is necessary to add babel plugins to support some javascript functions.`, "output");
         log(`Warning : Please always check your landing before production.`, "output");
+        /* Show console cursor */
+        process.stderr.write(ansiEscapes.cursorShow);
     }
 };
 
