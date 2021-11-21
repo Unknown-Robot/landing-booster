@@ -11,6 +11,7 @@ import util from "util";
 /* 
     TODO: 
         - Fix empty sdtout for purgecss and postcss
+        - Update path system for Unix OS now work only Windows OS 
         
 */
 
@@ -89,7 +90,7 @@ const main = async () => {
         config = model;
     }
 
-    /* Find item in object from key == value */
+    /* Find item in array object from key == value */
     const find = (data, key, value) => {
         for(let i = 0; i < data.length; i++) {
             if(data[i][key] == value) {
@@ -97,6 +98,19 @@ const main = async () => {
             }
         }
         return null;
+    }
+
+    /* Convert Unix timestamp to Date string */
+    const convertDate = (timestamp) => {
+        const format = (number) => (number < 9)? `0${number}`: number; 
+        let date = new Date(timestamp * 1000),
+            day = format(date.getDate()),
+            month = format(date.getMonth()),
+            year = date.getFullYear(),
+            hours = format(date.getHours()),
+            minutes = format(date.getMinutes()),
+            seconds = format(date.getSeconds());
+        return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
     }
 
     /* Get folder Bytes size from path */
@@ -205,6 +219,7 @@ const main = async () => {
         config["history"]["script"] = [];
         /* Perform all booster script */
         for(let i = 0; i < landingProcess["script"].length; i++) {
+            let timestamp = Math.floor(Date.now() / 1000);
             /* Remove information text */
             let script = landingProcess["script"][i].split(" ")[0].toLowerCase();
             let command = null;
@@ -236,16 +251,20 @@ const main = async () => {
                         for(let i = 0; i < files.length; i++) {
                             let file = files[i];
                             if(file.isFile()) {
-                                if(file.name.includes(".svg")) continue;
+                                let tmp = file.name.split(".");
+                                if(!["png", "jpg", "jpeg", "gif"].includes(tmp[tmp.length - 1])) {
+                                    sharpOutput.push(`Cannot convert image type [${tmp[tmp.length - 1]}], pass file : ${file.name}`);
+                                    continue;
+                                }
                                 let source = path + `\\${file.name}`;
-                                let output = path + `\\${file.name.split(".")[0]}.webp`;
+                                let output = path + `\\${tmp[0]}.webp`;
                                 let cmd = `${__bin}\\sharp --input "${source}" --output "${output}"`;
                                 await pipe(cmd);
-                                let sourceSize = await stat(source);
-                                let outputSize = await stat(output);
-                                sharpSaved = sharpSaved + (sourceSize.size - outputSize.size);
+                                let sourceFile = await stat(source);
+                                let outputFile = await stat(output);
+                                sharpSaved = sharpSaved + (sourceFile.size - outputFile.size);
                                 sharpCommands.push(cmd);
-                                sharpOutput.push(`Found ${file.name} [${formatBytes(sourceSize.size)}] transform to .webp [${formatBytes(outputSize.size)}]`);
+                                sharpOutput.push(`Found ${file.name} [${formatBytes(sourceFile.size)}] transform to .webp [${formatBytes(outputFile.size)}]`);
                                 await rm(source);
                             }
                             else {
@@ -276,7 +295,7 @@ const main = async () => {
                             log(`  ${lines[w]}`, "output");
                         }
                     }
-                    scriptOutput.push({ "script": script, "command": command, "sdtout": (lines.length)? lines: "", "stderr": (processus.stderr)? processus.stderr: "" });
+                    scriptOutput.push({ "script": script, "date": convertDate(timestamp), "command": command, "sdtout": (lines.length)? lines: "", "stderr": (processus.stderr)? processus.stderr: "" });
                 }
                 else if(script === "sharp") {
                     let str = `Total image size saved [${formatBytes(sharpSaved)}] !`;
@@ -287,7 +306,7 @@ const main = async () => {
                         log(`  ${str}`, "output");
                     }
                     sharpOutput.push(str);
-                    scriptOutput.push({ "script": script, "command": sharpCommands, "sdtout": sharpOutput, "stderr": "" });
+                    scriptOutput.push({ "script": script, "date": convertDate(timestamp), "command": sharpCommands, "sdtout": sharpOutput, "stderr": "" });
                 }
             }
             catch(error) {
@@ -303,7 +322,7 @@ const main = async () => {
                         if(w === 0) log(`  Error : ${errors[w]}`, "error");
                         else log(`  ${errors[w]}`, "error");
                     }
-                    scriptOutput.push({ "script": script, "command": command, "sdtout": (error.stdout)? error.stdout: "", "stderr": error.stderr });
+                    scriptOutput.push({ "script": script, "date": convertDate(timestamp), "command": command, "sdtout": (error.stdout)? error.stdout: "", "stderr": error.stderr });
                 }
                 else if(error.message) {
                     let errors = error.message.split("\n");
@@ -311,7 +330,7 @@ const main = async () => {
                         if(w === 0) log(`  Error : ${errors[w]}`, "error");
                         else log(`  ${errors[w]}`, "error");
                     }
-                    scriptOutput.push({ "script": script, "command": (command)? command: (script === "sharp")? sharpCommands: "", "sdtout": (error.stdout)? error.stdout: "", "stderr": error.message });
+                    scriptOutput.push({ "script": script, "date": convertDate(timestamp), "command": (command)? command: (script === "sharp")? sharpCommands: "", "sdtout": (error.stdout)? error.stdout: "", "stderr": error.message });
                 }
                 /* console.error(error); */
             }
@@ -371,8 +390,8 @@ const main = async () => {
         console.log("");
         /* Notify user need update images path in the landing source code */
         if(config["history"]["script"].includes("sharp")) {
-            /* (\.png|\.jpg) => .webp */
-            log(`Warning : Replace all optimized images file extension with ".webp" in the landing source code.`, "output");
+            /* (\.png|\.jpg|\.jpeg|\.gif) => .webp */
+            log(`Warning : Replace all optimized images file extension with ".webp" in the landing source code (SO regex "(\.png|\.jpg|\.jpeg|\.gif)" to .webp).`, "output");
         }
         log(`Warning : There is always a possibility of javascript error after transformation, sometimes it is necessary to add new babel plugins to support some javascript functions.`, "output");
         log(`Warning : Please always check your landing before transfer to production.`, "output");
