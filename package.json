@@ -1,7 +1,7 @@
 {
 	"name": "landing-booster",
 	"version": "1.0.0",
-	"description": "Node-js program designed for remove unused and minify javascript code, CSS rules and optimize images for dev landing page.",
+	"description": "Node-js program designed to optimize dev landing pages and make Google robot happy.",
 	"main": "index.js",
 	"private": true,
 	"scripts": {
