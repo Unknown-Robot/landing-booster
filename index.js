@@ -11,7 +11,8 @@ import util from "util";
 /* 
     TODO: 
         - Fix empty sdtout for purgecss and postcss
-        - Update path system for Unix OS now work only Windows OS 
+        - Update path system for Unix OS now work only Windows OS
+        - Add file extension list in config.json to custom purgecss content 
         
 */
 
@@ -102,7 +103,7 @@ const main = async () => {
 
     /* Convert Unix timestamp to Date string */
     const convertDate = (timestamp) => {
-        const format = (number) => (number < 9)? `0${number}`: number; 
+        const format = (number) => (number <= 9)? `0${number}`: number; 
         let date = new Date(timestamp * 1000),
             day = format(date.getDate()),
             month = format(date.getMonth()),
@@ -391,7 +392,7 @@ const main = async () => {
         /* Notify user need update images path in the landing source code */
         if(config["history"]["script"].includes("sharp")) {
             /* (\.png|\.jpg|\.jpeg|\.gif) => .webp */
-            log(`Warning : Replace all optimized images file extension with ".webp" in the landing source code (SO regex "(\.png|\.jpg|\.jpeg|\.gif)" to .webp).`, "output");
+            log(`Warning : Replace all optimized images file extension with ".webp" in the landing source code (SO replace regex "(\.png|\.jpg|\.jpeg|\.gif)" to .webp).`, "output");
         }
         log(`Warning : There is always a possibility of javascript error after transformation, sometimes it is necessary to add new babel plugins to support some javascript functions.`, "output");
         log(`Warning : Please always check your landing before transfer to production.`, "output");
