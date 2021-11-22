@@ -163,18 +163,18 @@ Need change browser targets see [documentation](https://babeljs.io/docs/en/babel
 
 ### [purgecss](#purgecss)
 <a name="purgecss"></a>
-In tool purgecss is used to remove unused CSS rules from content file.<br>
-By default in tool purgecss check if CSS rules is used in HTML, Javascript and PHP files.<br>
+In tool purgecss is used to remove unused CSS rules from HTML, Javascript and PHP files.<br>
+By default in tool purgecss remove all CSS rules unused in css folder contains at the root of landing.<br>
 
 ### [postcss](#postcss)
 <a name="postcss"></a>
 In tool postcss is used to minify all CSS files.<br>
-By default in tool postcss minify all CSS files in CSS folder contains at the root of landing.<br>
+By default in tool postcss minify all CSS files in css folder contains at the root of landing.<br>
 
 ### [sharp](#sharp)
 <a name="sharp"></a>
 In tool sharp is used to convert all compatible images to format .webp.<br>
-By default in tool, sharp only convert images of this types (png, jpg, jpeg, gif).<br>
+By default in tool, sharp only convert images of this types (png, jpg, jpeg, gif) in images folder contains at the root of landing.<br>
 Do not forget original images will be deleted in build folder, you need to replace all optimized images file extension with ".webp" in the landing source code.<br>
 This regex can help to replace images extension "(\\.png|\\.jpg|\\.jpeg|\\.gif)" to ".webp".<br>
 
