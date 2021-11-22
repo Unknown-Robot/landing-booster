@@ -42,13 +42,13 @@ First you need install Node.js, download [here](<https://nodejs.org/en/download/
 
 After installation you need check Node.js and NPM installation, use command :
 ```sh
-  node -v && npm -v
+node -v && npm -v
 ```
 
 You should see output like this :
 ```sh
-  v15.5.1
-  7.18.1
+v15.5.1
+7.18.1
 ```
 
 ### [Download](#download)
@@ -56,25 +56,25 @@ You should see output like this :
 
 To download booster tool, use command : 
 ```sh
-  git clone https://github.com/Unknown-Robot/landing-booster.git
+git clone https://github.com/Unknown-Robot/landing-booster.git
 ```
 Navigate to project installation folder :
 ```sh
-  cd landing-booster
+cd landing-booster
 ```
 You should see output like this :
 ```sh
-  C:\\Users\\USERNAME\\Document\\Github\\landing-booster>
+C:\\Users\\USERNAME\\Document\\Github\\landing-booster>
 ```
 
 If you don't use Github you can download the project directly with "Download ZIP" from the repository.<br>
 Unzip downloaded folder and navigate to project installation folder :
 ```sh
-  cd C:\\Users\\USERNAME\\Download\\landing-booster
+cd C:\\Users\\USERNAME\\Download\\landing-booster
 ```
 You should see output like this :
 ```sh
-  C:\\Users\\USERNAME\\Download\\landing-booster>
+C:\\Users\\USERNAME\\Download\\landing-booster>
 ```
 
 ### [Installation](#installation)
@@ -82,7 +82,7 @@ You should see output like this :
 
 To install booster tool and dependencies, simply use command :
 ```sh
-  npm install
+npm install
 ```
 
 ### [First use](#start)
@@ -90,14 +90,14 @@ To install booster tool and dependencies, simply use command :
 
 After installation, to start booster tool use command :
 ```sh
-  npm start
+npm start
 ```
 
 You should see output like this :
 ```sh
-  Start landing booster 🚀
-  ? Select landing folder path : (Use arrow keys)
-  > Insert new path
+Start landing booster 🚀
+? Select landing folder path : (Use arrow keys)
+> Insert new path
 ```
 
 Insert new path is your only choice, you will need to specify a new landing folder path.<br>
@@ -105,35 +105,35 @@ Push <kbd>enter</kbd> to select choice.<br>
 
 Now select all booster script with <kbd>a</kbd> and push <kbd>enter</kbd> to proceed :
 ```sh
-  Start landing booster 🚀
-  ? Select landing folder path : Insert new path
-  ? Select booster script : (Press <space> to select, <a> to toggle all, ...
-  (*) Babel (Transform code for old browser, remove unused code, minify code) [required]
-  (*) Purgecss (Remove unused CSS rules)
-  (*) Postcss (Minify CSS rules)
-  (*) Sharp (Images compression, WebP conversion)
+Start landing booster 🚀
+? Select landing folder path : Insert new path
+? Select booster script : (Press <space> to select, <a> to toggle all, ...
+(*) Babel (Transform code for old browser, remove unused code, minify code) [required]
+(*) Purgecss (Remove unused CSS rules)
+(*) Postcss (Minify CSS rules)
+(*) Sharp (Images compression, WebP conversion)
 ```
 
 Each new path and script executed is stored in "config.json" for next use.<br>
 Paste new landing folder path and push <kbd>enter</kbd> to proceed :
 ```sh
-  Start landing booster 🚀
-  ? Select landing folder path : Insert new path
-  ? Select booster script : Babel ...
-  ? Insert new landing folder path : C:\\Wamp\\www\\fen\\lan\\57
+Start landing booster 🚀
+? Select landing folder path : Insert new path
+? Select booster script : Babel ...
+? Insert new landing folder path : C:\\Wamp\\www\\fen\\lan\\57
 ```
 
 Perfect you have optimised your first landing !
 ```sh
-  ...
-  Run script : babel ✔
-  Run script : purgecss ✔
-  Run script : postcss ✔
-  Run script : sharp ✔
-  Execution time : 21 seconds
-  Total size saved : 4.62 Mb
+...
+Run script : babel ✔
+Run script : purgecss ✔
+Run script : postcss ✔
+Run script : sharp ✔
+Execution time : 21 seconds
+Total size saved : 4.62 Mb
 
-  ? Need start again [Y/n] ?
+? Need start again [Y/n] ?
 ```
 Now you can just push <kbd>enter</kbd> to restart program (Yes by default) or close tool with <kbd>CTR-C</kbd> or <kbd>CTR-Z</kbd>.
 
