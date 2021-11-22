@@ -107,7 +107,7 @@ Now select all booster script with <kbd>a</kbd> and push <kbd>enter</kbd> to pro
 ```sh
     Start landing booster 🚀
     ? Select landing folder path : Insert new path
-    ? Select booster script : (Press <space> to select, <a> to toggle all, <i> to invert selection, and <enter> to proceed)
+    ? Select booster script : (Press <space> to select, <a> to toggle all, ...
     (*) Babel (Transform code for old browser, remove unused code, minify code) [required]
     (*) Purgecss (Remove unused CSS rules)
     (*) Postcss (Minify CSS rules)
