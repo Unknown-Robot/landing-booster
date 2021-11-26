@@ -136,6 +136,7 @@ const main = async () => {
         for(let i = 0; i < files.length; i++) {
             let file = files[i];
             if(file.isFile()) {
+                /* Exclude all original images */
                 if(exclude) {
                     let tmp = file.name.split(".");
                     if(["png", "jpg", "jpeg", "gif"].includes(tmp[tmp.length - 1])) {
@@ -439,7 +440,7 @@ const main = async () => {
             }
             /* Show total size saved */
             let sourceSize = await folderSize(landingPath);
-            let buildSize = await folderSize(landingPath + "\\build", true);
+            let buildSize = await folderSize(landingPath + "\\build", (config["history"]["script"].includes("sharp")));
             log(`Total size saved : ${formatBytes(sourceSize - buildSize)}`);
             /* Show console cursor */
             process.stderr.write(ansiEscapes.cursorShow);
