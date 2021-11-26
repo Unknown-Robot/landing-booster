@@ -467,10 +467,9 @@ const main = async () => {
         
         /* Jump line */
         console.log("");
-        /* Notify user need update images path in the landing source code */
+        /* Notify user need verify transformed images in landing */
         if(config["history"]["script"].includes("sharp")) {
-            /* (\.png|\.jpg|\.jpeg|\.gif) => .webp */
-            log(`Warning : Replace all optimized images file extension with ".webp" in the landing source code (SO replace regex "(\.png|\.jpg|\.jpeg|\.gif)" to .webp).`, "output");
+            log(`Warning : You need verify that all transformed images are correctly displayed in landing. All transformed images have been wrapped in a <picture> tag to ensure cross browser compatibility. Example if the image size was based on the parent originally = broken CSS`, "output");
         }
         log(`Warning : There is always a possibility of javascript error after transformation, sometimes it is necessary to add new babel plugins to support some javascript functions.`, "output");
         log(`Warning : Please always check your landing before transfer to production.`, "output");
