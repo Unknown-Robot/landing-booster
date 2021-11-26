@@ -7,6 +7,8 @@ import { constants } from "fs";
 import { resolve } from "path";
 import chalk from "chalk";
 import util from "util";
+import mime from "mime-types";
+import url from "url";
 
 /* 
     TODO: 
@@ -54,16 +56,18 @@ const clean = () => {
     process.stdout.write(ansiEscapes.eraseEndLine);
 }
 
-/* Main entry app */
+/* Main app entry */
 const main = async () => {
     let execution = 0;
     let config = null;
+    let polyfill = null;
     let landingPath = null;
     let scriptOutput = [];
 
     /* Sharp output */
     let sharpCommands = [];
     let sharpOutput = [];
+    let sharpImages = [];
     let sharpSaved = 0;
 
     /* Loader */
@@ -91,6 +95,17 @@ const main = async () => {
         config = model;
     }
 
+    try {
+        /* Try to read webp-in-css/polyfill.js */
+        let data = await readFile(__dirname + "\\webp-in-css\\polyfill.js", "utf-8");
+        polyfill = (data && data.length)? data: "";
+    }
+    catch(error) {
+        if(error.code === "ENOENT") {
+            throw(new Error(`Cannot access file "webp-in-css/polyfill.js", please rebase landing-booster repository to master.`));
+        }
+    }
+
     /* Find item in array object from key == value */
     const find = (data, key, value) => {
         for(let i = 0; i < data.length; i++) {
@@ -115,18 +130,24 @@ const main = async () => {
     }
 
     /* Get folder Bytes size from path */
-    const folderSize = async(path) => {
+    const folderSize = async(path, exclude = false) => {
         let size = 0;
         const files = await readdir(path, { encoding: "utf8", withFileTypes: true });
         for(let i = 0; i < files.length; i++) {
             let file = files[i];
             if(file.isFile()) {
+                if(exclude) {
+                    let tmp = file.name.split(".");
+                    if(["png", "jpg", "jpeg", "gif"].includes(tmp[tmp.length - 1])) {
+                        continue;
+                    }
+                }
                 let source = path + `\\${file.name}`;
                 let sourceSize = await stat(source);
                 size = size + sourceSize.size;
             }
             else if(file.name != "build") {
-                size = size + await folderSize(path + "\\" + file.name);
+                size = size + await folderSize(path + "\\" + file.name, exclude);
             }
         }
         return size;
@@ -265,8 +286,8 @@ const main = async () => {
                                 let outputFile = await stat(output);
                                 sharpSaved = sharpSaved + (sourceFile.size - outputFile.size);
                                 sharpCommands.push(cmd);
+                                sharpImages.push(file.name);
                                 sharpOutput.push(`Found ${file.name} [${formatBytes(sourceFile.size)}] transform to .webp [${formatBytes(outputFile.size)}]`);
-                                await rm(source);
                             }
                             else {
                                 await transformFolder(path + "\\" + file.name);
@@ -274,6 +295,63 @@ const main = async () => {
                         }
                     }
                     await transformFolder(landingBuildPath + "\\images");
+
+                    const replaceFolder = async(path) => {
+                        const files = await readdir(path, { encoding: "utf8", withFileTypes: true });
+                        for(let i = 0; i < files.length; i++) {
+                            let file = files[i];
+                            if(file.isFile()) {
+                                let format = file.name.split(".");
+                                format = format[format.length - 1];
+                                if(format === "php" || format === "html") {
+                                    let data = await readFile(path + "\\" + file.name, "utf8");
+                                    /* Try to add polyfill script in head before CSS link */
+                                    let polyfillEntry = "</title>";
+                                    let polyfillScript = `<script>${polyfill}</script>`;
+                                    if(data.includes(polyfillEntry)) {
+                                        if(!data.includes(polyfillScript)) {
+                                            data = data.replace(polyfillEntry, `${polyfillEntry}\n${polyfillScript}`);
+                                            sharpOutput.push(`Insert Webp polyfill script in file [${file.name}] : ${polyfillEntry}`);
+                                        }
+                                    }
+                                    else {
+                                        sharpOutput.push(`Cannot insert Webp polyfill script, not found entry in file [${file.name}] : ${polyfillEntry}`);
+                                    }
+                                    /* Replace <img> to <picture> */
+                                    let regex = /(<\s*img\s[^>]*?src\s*=\s*['\"][^'\"]*?['\"][^>]*?\s*>)/gm;
+                                    let result = data.match(regex);
+                                    if(result && result.length) {
+                                        for(let w = 0; w < result.length; w++) {
+                                            let element = result[w];
+                                            for(let z = 0; z < sharpImages.length; z++) {
+                                                let image = sharpImages[z];
+                                                if(element.includes("images/" + image)) {
+                                                    const sanitizePath = (path) => {
+                                                        let tmp = url.pathToFileURL(path)["pathname"].split("\/"); 
+                                                        return (tmp.length)? tmp[tmp.length - 1]: path;
+                                                    };
+                                                    let replace =
+                                                    `<picture>` +
+                                                        `<source srcset="images/${sanitizePath(image.split(".")[0])}.webp" type="image/webp">` +
+                                                        `<source srcset="images/${sanitizePath(image)}" type="${mime.lookup(image)}">` +
+                                                        `${element}` +
+                                                    `</picture>`;
+                                                    sharpOutput.push(`Transform image [${image}] in code file [${file.name}] : ${element}`);
+                                                    data = data.replace(element, replace);
+                                                }
+                                            }
+                                        }
+                                        await writeFile(path + "\\" + file.name, data, "utf8");
+                                    }
+                                }
+                            }
+                            else if(file.isDirectory() && file.name != "build") {
+                                await replaceFolder(path + "\\" + file.name);
+                            }
+                        }
+                    }
+
+                    await replaceFolder(landingBuildPath);
                 }
 
                 if(command) {
@@ -361,7 +439,7 @@ const main = async () => {
             }
             /* Show total size saved */
             let sourceSize = await folderSize(landingPath);
-            let buildSize = await folderSize(landingPath + "\\build");
+            let buildSize = await folderSize(landingPath + "\\build", true);
             log(`Total size saved : ${formatBytes(sourceSize - buildSize)}`);
             /* Show console cursor */
             process.stderr.write(ansiEscapes.cursorShow);
