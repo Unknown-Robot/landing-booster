@@ -1,0 +1,28 @@
+{
+  "name": "webp-in-css",
+  "version": "0.7.0",
+  "description": "PostCSS plugin and tiny JS script (184 bytes) to use WebP in CSS background",
+  "keywords": [
+    "webp",
+    "postcss-plugin",
+    "css",
+    "background",
+    "polyfill"
+  ],
+  "author": "Andrey Sitnik <andrey@sitnik.ru>",
+  "license": "MIT",
+  "repository": "ai/webp-in-css",
+  "bugs": {
+    "url": "https://github.com/ai/webp-in-css/issues"
+  },
+  "engines": {
+    "node": ">=12.0"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/postcss/"
+  },
+  "peerDependencies": {
+    "postcss": "^8.2.14"
+  }
+}
