@@ -264,7 +264,7 @@ const main = async () => {
                         command = `${__bin}\\purgecss --css "${landingBuildPath + "\\css\\*.css"}" "${landingBuildPath + "\\css\\*.min.css"}" --content "${landingBuildPath + "\\**\\*.html"}" "${landingBuildPath + "\\**\\*.php"}" "${landingBuildPath + "\\**\\*.js"}" --output "${landingBuildPath + "\\css"}" --config ./purgecss.config.cjs`;
                     }
                     if(script === "postcss") {
-                        command = `${__bin}\\postcss "${landingBuildPath + "\\css"}" --dir "${landingBuildPath + "\\css"}" --config ./postcss.config.cjs`;
+                        command = `${__bin}\\postcss "${landingBuildPath + "\\css\\*.css"}" --dir "${landingBuildPath + "\\css"}" --config ./postcss.config.cjs`;
                     }
                 }
                 if(script === "sharp") {
@@ -315,15 +315,13 @@ const main = async () => {
                                             sharpOutput.push(`Insert Webp polyfill script in file [${file.name}] : ${polyfillEntry}`);
                                         }
                                     }
-                                    else {
-                                        sharpOutput.push(`Cannot insert Webp polyfill script, not found entry in file [${file.name}] : ${polyfillEntry}`);
-                                    }
                                     /* Replace <img> to <picture> */
                                     let regex = /(<\s*img\s[^>]*?src\s*=\s*['\"][^'\"]*?['\"][^>]*?\s*>)/gm;
                                     let result = data.match(regex);
                                     if(result && result.length) {
                                         for(let w = 0; w < result.length; w++) {
                                             let element = result[w];
+                                            if(element.includes("data-transform")) continue;
                                             for(let z = 0; z < sharpImages.length; z++) {
                                                 let image = sharpImages[z];
                                                 if(element.includes("images/" + image)) {
@@ -331,14 +329,16 @@ const main = async () => {
                                                         let tmp = url.pathToFileURL(path)["pathname"].split("\/"); 
                                                         return (tmp.length)? tmp[tmp.length - 1]: path;
                                                     };
+                                                    let newElement = element.replace(/<\s*img/g, `<img data-transform="true"`);
                                                     let replace =
                                                     `<picture>` +
                                                         `<source srcset="images/${sanitizePath(image.split(".")[0])}.webp" type="image/webp">` +
                                                         `<source srcset="images/${sanitizePath(image)}" type="${mime.lookup(image)}">` +
-                                                        `${element}` +
+                                                        `${newElement}` +
                                                     `</picture>`;
                                                     sharpOutput.push(`Transform image [${image}] in code file [${file.name}] : ${element}`);
                                                     data = data.replace(element, replace);
+                                                    result[w] = newElement;
                                                 }
                                             }
                                         }
