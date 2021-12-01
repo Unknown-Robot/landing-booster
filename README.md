@@ -175,8 +175,21 @@ By default in tool postcss minify all CSS files in css folder contains at the ro
 <a name="sharp"></a>
 In tool sharp is used to convert all compatible images to format .webp.<br>
 By default in tool, sharp only convert images of this types (png, jpg, jpeg, gif) in images folder contains at the root of landing.<br>
-Do not forget original images will be deleted in build folder, you need to replace all optimized images file extension with ".webp" in the landing source code.<br>
-This regex can help to replace images extension "(\\.png|\\.jpg|\\.jpeg|\\.gif)" to ".webp".<br>
+All CSS rules use transformed images, will be converted by postcss with [plugin](webp-in-css/plugin.js).
+The script inject [polyfill](webp-in-css/polyfill.js) in header and convert all <img> to <picture> HTML element in source code of HTML or PHP files.
+
+Before conversion :
+```html
+    <img src="images/logo.png" alt="img"/>
+```
+After conversion :
+```html
+<picture>
+    <source srcset="images/logo.webp" type="image/webp">
+    <source srcset="images/logo.png" type="image/png">
+    <img data-transform type="image/png" src="images/logo.png" alt="img"/>
+</picture>
+```
 
 ## [Licence](#licence)
 <a name="licence"></a>
