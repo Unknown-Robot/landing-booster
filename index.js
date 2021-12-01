@@ -1,13 +1,13 @@
 import { rm, access, readFile, writeFile, readdir, stat } from "fs/promises";
 import ansiEscapes from "ansi-escapes";
 import { exec } from "child_process";
+import probe from "probe-image-size";
 import model from "./config.cjs";
 import inquirer from "inquirer";
 import { constants } from "fs";
 import { resolve } from "path";
 import chalk from "chalk";
 import util from "util";
-import mime from "mime-types";
 import url from "url";
 
 /* 
@@ -26,13 +26,19 @@ const __dirname = resolve();
 const __bin = `${__dirname}\\node_modules\\.bin`;
 
 /* Convert bytes format to string */
-function formatBytes(bytes, decimals = 2) {
+const formatBytes = (bytes, decimals = 2) => {
     if(bytes === 0) return "0 Bytes";
     const k = 1024;
     const dm = (decimals < 0)? 0: decimals;
     const sizes = ["Bytes", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+}
+
+/* Get file name extension */
+const getExtension = (filename) => {
+    let format = filename.split(".");
+    return format[format.length - 1];
 }
 
 /* Logger */
@@ -138,8 +144,8 @@ const main = async () => {
             if(file.isFile()) {
                 /* Exclude all original images */
                 if(exclude) {
-                    let tmp = file.name.split(".");
-                    if(["png", "jpg", "jpeg", "gif"].includes(tmp[tmp.length - 1])) {
+                    let format = getExtension(file["name"]);
+                    if(["png", "jpg", "jpeg", "gif"].includes(format)) {
                         continue;
                     }
                 }
@@ -194,7 +200,7 @@ const main = async () => {
     ];
 
     /* Sanitize path to Windows format */
-    const sanitizePath = (path) => {
+    const sanitizePathEntry = (path) => {
         return path.replace("/", "\\").replace("\/", "\\");
     }
 
@@ -209,7 +215,7 @@ const main = async () => {
                 name: "new_path",
                 message: "Insert new landing folder path :",
                 validate(value) {
-                    const pass = sanitizePath(value).match(/[a-zA-z]{1}:\\(?:[^\\/:*?"<>|\n]+\\*)*/i);
+                    const pass = sanitizePathEntry(value).match(/[a-zA-z]{1}:\\(?:[^\\/:*?"<>|\n]+\\*)*/i);
                     if(value.length && pass) return true;
                     return "Please enter a valid landing folder path";
                 }
@@ -268,42 +274,53 @@ const main = async () => {
                     }
                 }
                 if(script === "sharp") {
-                    /* Convert all images to Webp */
-                    const transformFolder = async(path) => {
+                    /* Convert all images contains ./images to Webp */
+                    const transformFolder = async(path, folder) => {
                         const files = await readdir(path, { encoding: "utf8", withFileTypes: true });
                         for(let i = 0; i < files.length; i++) {
                             let file = files[i];
                             if(file.isFile()) {
-                                let tmp = file.name.split(".");
-                                if(!["png", "jpg", "jpeg", "gif"].includes(tmp[tmp.length - 1])) {
-                                    sharpOutput.push(`Cannot convert image type [${tmp[tmp.length - 1]}], pass file : ${file.name}`);
+                                let format = getExtension(file["name"]);
+                                if(!["png", "jpg", "jpeg", "gif"].includes(format)) {
+                                    sharpOutput.push(`Cannot convert image type [${format}], pass file : ${file.name}`);
                                     continue;
                                 }
-                                let source = path + `\\${file.name}`;
-                                let output = path + `\\${tmp[0]}.webp`;
+                                let webp = file["name"].replace(format, "webp");
+                                let source = `${path}\\${file.name}`;
+                                let output = `${path}\\${webp}`;
                                 let cmd = `${__bin}\\sharp --input "${source}" --output "${output}"`;
                                 await pipe(cmd);
                                 let sourceFile = await stat(source);
                                 let outputFile = await stat(output);
+                                let sourceMeta = probe.sync(await readFile(source));
                                 sharpSaved = sharpSaved + (sourceFile.size - outputFile.size);
                                 sharpCommands.push(cmd);
-                                sharpImages.push(file.name);
+                                sharpImages.push({
+                                    "name": (folder)? `${folder}/${file.name}`: file.name,
+                                    "webp": (folder)? `${folder}/${webp}`: webp,
+                                    "mime": (sourceMeta)? sourceMeta.mime: null,
+                                    "alt": file["name"].replace(`.${format}`, ""),
+                                    "dimension": {
+                                        "width": (sourceMeta)? sourceMeta.width: null,
+                                        "height": (sourceMeta)? sourceMeta.height: null
+                                    }
+                                });
                                 sharpOutput.push(`Found ${file.name} [${formatBytes(sourceFile.size)}] transform to .webp [${formatBytes(outputFile.size)}]`);
                             }
                             else {
-                                await transformFolder(path + "\\" + file.name);
+                                await transformFolder(path + "\\" + file.name, (folder)? `${folder}/${file.name}`: file.name);
                             }
                         }
                     }
                     await transformFolder(landingBuildPath + "\\images");
 
+                    /* Replace all images in source code to Webp */
                     const replaceFolder = async(path) => {
                         const files = await readdir(path, { encoding: "utf8", withFileTypes: true });
                         for(let i = 0; i < files.length; i++) {
                             let file = files[i];
                             if(file.isFile()) {
-                                let format = file.name.split(".");
-                                format = format[format.length - 1];
+                                let format = getExtension(file.name);
                                 if(format === "php" || format === "html") {
                                     let data = await readFile(path + "\\" + file.name, "utf8");
                                     /* Try to add polyfill script in head before CSS link */
@@ -311,11 +328,11 @@ const main = async () => {
                                     let polyfillScript = `<script>${polyfill}</script>`;
                                     if(data.includes(polyfillEntry)) {
                                         if(!data.includes(polyfillScript)) {
-                                            data = data.replace(polyfillEntry, `${polyfillEntry}\n${polyfillScript}`);
+                                            data = data.replace(polyfillEntry, `${polyfillEntry}\n   ${polyfillScript}`);
                                             sharpOutput.push(`Insert Webp polyfill script in file [${file.name}] : ${polyfillEntry}`);
                                         }
                                     }
-                                    /* Replace <img> to <picture> */
+                                    /* Create <picture> from <img> to polyfill Webp format */
                                     let regex = /(<\s*img\s[^>]*?src\s*=\s*['\"][^'\"]*?['\"][^>]*?\s*>)/gm;
                                     let result = data.match(regex);
                                     if(result && result.length) {
@@ -324,19 +341,39 @@ const main = async () => {
                                             if(element.includes("data-transform")) continue;
                                             for(let z = 0; z < sharpImages.length; z++) {
                                                 let image = sharpImages[z];
-                                                if(element.includes("images/" + image)) {
-                                                    const sanitizePath = (path) => {
-                                                        let tmp = url.pathToFileURL(path)["pathname"].split("\/"); 
-                                                        return (tmp.length)? tmp[tmp.length - 1]: path;
+                                                if(element.includes("images/" + image["name"])) {
+                                                    /* Get specify attribute from HTML entity */
+                                                    const getAttribute = (entity, attribute) => {
+                                                        let regex = new RegExp(`${attribute}\s*=\s*['\"]([^'\"]*?)['\"]`, "gm");
+                                                        return entity.match(regex);
                                                     };
-                                                    let newElement = element.replace(/<\s*img/g, `<img data-transform="true"`);
+                                                    /* Transform path to URL to avoid broken call in browser */
+                                                    const sanitizePath = (path) => {
+                                                        /* Remove script path to image path */
+                                                        return url.pathToFileURL(path)["pathname"].replace(`\/${__dirname.replace(/\\/g, "\/")}\/`, "");
+                                                    };
+                                                    let attribute = ["data-transform"];
+                                                    if(!getAttribute(element, "type")) {
+                                                        attribute.push(`type="${image["mime"]}"`);
+                                                    }
+                                                    if(!getAttribute(element, "alt")) {
+                                                        attribute.push(`alt="${image["alt"]}"`);
+                                                    }
+                                                    /* Broke CSS */
+                                                    /* if(!getAttribute(element, "width")) {
+                                                        attribute.push(`width="${image["dimension"]["width"]}"`);
+                                                    }
+                                                    if(!getAttribute(element, "height")) {
+                                                        attribute.push(`height="${"auto"}"`); // image["dimension"]["height"]
+                                                    } */
+                                                    let newElement = element.replace(/<\s*img/gm, `<img ${attribute.join(" ")}`);
                                                     let replace =
                                                     `<picture>` +
-                                                        `<source srcset="images/${sanitizePath(image.split(".")[0])}.webp" type="image/webp">` +
-                                                        `<source srcset="images/${sanitizePath(image)}" type="${mime.lookup(image)}">` +
+                                                        `<source srcset="images/${sanitizePath(image["webp"])}" type="image/webp">` +
+                                                        `<source srcset="images/${sanitizePath(image["name"])}" type="${image["mime"]}">` +
                                                         `${newElement}` +
                                                     `</picture>`;
-                                                    sharpOutput.push(`Transform image [${image}] in code file [${file.name}] : ${element}`);
+                                                    sharpOutput.push(`Transform image [${image["name"]}] in code file [${file.name}] : ${element}`);
                                                     data = data.replace(element, replace);
                                                     result[w] = newElement;
                                                 }
@@ -412,7 +449,7 @@ const main = async () => {
                     }
                     scriptOutput.push({ "script": script, "date": convertDate(timestamp), "command": (command)? command: (script === "sharp")? sharpCommands: "", "sdtout": (error.stdout)? error.stdout: "", "stderr": error.message });
                 }
-                /* console.error(error); */
+                console.error(error);
             }
         }
     }
