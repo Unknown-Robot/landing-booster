@@ -273,6 +273,8 @@ const main = async () => {
                     }
                 }
                 if(script === "sharp") {
+                    /* Check if css folder exist in build folder */
+                    await access(landingBuildPath + "\\images", constants.R_OK | constants.W_OK);
                     /* Convert all images contains ./images to Webp */
                     const transformFolder = async(path, folder) => {
                         const files = await readdir(path, { encoding: "utf8", withFileTypes: true });
