@@ -241,7 +241,6 @@ const main = async () => {
             await rm(landingBuildPath, { recursive: true, force: true });
         }
         catch(error) {}
-
         /* Init execution timer */
         execution = Math.floor(Date.now() / 1000);
         /* Reset history script, replace with new executed script */
@@ -292,7 +291,8 @@ const main = async () => {
                                 await pipe(cmd);
                                 let sourceFile = await stat(source);
                                 let outputFile = await stat(output);
-                                let sourceMeta = probe.sync(await readFile(source));
+                                let data = await readFile(source);
+                                let sourceMeta = await probe(data);
                                 sharpSaved = sharpSaved + (sourceFile.size - outputFile.size);
                                 sharpCommands.push(cmd);
                                 sharpImages.push({
