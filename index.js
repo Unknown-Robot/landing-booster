@@ -4,7 +4,7 @@ import { exec } from "child_process";
 import probe from "probe-image-size";
 import model from "./config.cjs";
 import inquirer from "inquirer";
-import { constants } from "fs";
+import { constants, createReadStream } from "fs";
 import { resolve } from "path";
 import chalk from "chalk";
 import util from "util";
@@ -235,12 +235,6 @@ const main = async () => {
         let landingBuildPath = landingPath + "\\build";
         /* Hide console cursor */
         process.stderr.write(ansiEscapes.cursorHide);
-        /* Delete last build folder */
-        try {
-            await access(landingBuildPath, constants.R_OK | constants.W_OK);
-            await rm(landingBuildPath, { recursive: true, force: true });
-        }
-        catch(error) {}
         /* Init execution timer */
         execution = Math.floor(Date.now() / 1000);
         /* Reset history script, replace with new executed script */
@@ -258,9 +252,9 @@ const main = async () => {
 
             /* Perform script in local node_modules binary folder (Avoid global installation) */
             try {
-                /* babel script is required because, for now, he is the one who copies the folders and files */
+                /* babel script is required because, for now, he is the one who copies the folders and files, and delete build before transformation */
                 if(script === "babel") {
-                    command = `${__bin}\\babel "${landingPath}" --out-dir "${landingBuildPath}" --copy-files --config-file ./babel.config.json ${(config["ignore"].length)? `--ignore ${config["ignore"].join(",")}`: ""}`;
+                    command = `${__bin}\\babel "${landingPath}" --out-dir "${landingBuildPath}" --copy-files --config-file ./babel.config.json ${(config["ignore"].length)? `--ignore ${config["ignore"].join(",")}`: ""} --delete-dir-on-start`;
                 }
                 if(script.substr(script.length - 3) === "css") {
                     /* Check if css folder exist in build folder */
@@ -293,8 +287,7 @@ const main = async () => {
                                 await pipe(cmd);
                                 let sourceFile = await stat(source);
                                 let outputFile = await stat(output);
-                                let data = await readFile(source);
-                                let sourceMeta = await probe(data);
+                                let sourceMeta = await probe(createReadStream(source));
                                 sharpSaved = sharpSaved + (sourceFile.size - outputFile.size);
                                 sharpCommands.push(cmd);
                                 sharpImages.push({
