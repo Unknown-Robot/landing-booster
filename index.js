@@ -1,10 +1,10 @@
-import { rm, access, readFile, writeFile, readdir, stat } from "fs/promises";
+import { rm, access, readFile, writeFile, readdir, mkdir, stat } from "fs/promises";
+import { constants, createReadStream } from "fs";
 import ansiEscapes from "ansi-escapes";
 import { exec } from "child_process";
 import probe from "probe-image-size";
 import model from "./config.cjs";
 import inquirer from "inquirer";
-import { constants, createReadStream } from "fs";
 import { resolve } from "path";
 import chalk from "chalk";
 import util from "util";
@@ -256,7 +256,7 @@ const main = async () => {
                 if(script === "babel") {
                     command = `${__bin}\\babel "${landingPath}" --out-dir "${landingBuildPath}" --copy-files --config-file ./babel.config.json ${(config["ignore"].length)? `--ignore ${config["ignore"].join(",")}`: ""} --delete-dir-on-start`;
                 }
-                if(script.substr(script.length - 3) === "css") {
+                else if(script.substr(script.length - 3) === "css") {
                     /* Check if css folder exist in build folder */
                     await access(landingBuildPath + "\\css", constants.R_OK | constants.W_OK);
                     if(script === "purgecss") {
@@ -266,9 +266,17 @@ const main = async () => {
                         command = `${__bin}\\postcss "${landingBuildPath + "\\css\\*.css"}" --dir "${landingBuildPath + "\\css"}" --config ./postcss.config.cjs`;
                     }
                 }
-                if(script === "sharp") {
-                    /* Check if css folder exist in build folder */
+                else if(script === "sharp") {
+                    /* Check if images folder exist in build folder */
                     await access(landingBuildPath + "\\images", constants.R_OK | constants.W_OK);
+                    try {
+                        /* Check if images/webp folder exist in build folder */
+                        await access(landingBuildPath + "\\images\\webp", constants.R_OK | constants.W_OK);
+                    }
+                    catch(error) {
+                        /* Create images/webp folder if not exist */
+                        await mkdir(landingBuildPath + "\\images\\webp", { recursive: true });
+                    }
                     /* Convert all images contains ./images to Webp */
                     const transformFolder = async(path, folder) => {
                         const files = await readdir(path, { encoding: "utf8", withFileTypes: true });
@@ -276,14 +284,14 @@ const main = async () => {
                             let file = files[i];
                             if(file.isFile()) {
                                 let format = getExtension(file["name"]);
-                                if(!["png", "jpg", "jpeg", "gif"].includes(format)) {
+                                if(!["png", "jpg", "jpeg"].includes(format)) {
                                     sharpOutput.push(`Cannot convert image type [${format}], pass file : ${file.name}`);
                                     continue;
                                 }
                                 let webp = file["name"].replace(format, "webp");
                                 let source = `${path}\\${file.name}`;
-                                let output = `${path}\\${webp}`;
-                                let cmd = `${__bin}\\sharp --input "${source}" --output "${output}"`;
+                                let output = `${landingBuildPath}\\images\\webp\\${webp}`;
+                                let cmd = `${__bin}\\sharp --input \"${source}\" --output \"${output}\"`;
                                 await pipe(cmd);
                                 let sourceFile = await stat(source);
                                 let outputFile = await stat(output);
@@ -292,7 +300,7 @@ const main = async () => {
                                 sharpCommands.push(cmd);
                                 sharpImages.push({
                                     "name": (folder)? `${folder}/${file.name}`: file.name,
-                                    "webp": (folder)? `${folder}/${webp}`: webp,
+                                    "webp": `webp/${webp}`,
                                     "mime": (sourceMeta)? sourceMeta.mime: null,
                                     "alt": file["name"].replace(`.${format}`, ""),
                                     "dimension": {
@@ -302,7 +310,7 @@ const main = async () => {
                                 });
                                 sharpOutput.push(`Found ${file.name} [${formatBytes(sourceFile.size)}] transform to .webp [${formatBytes(outputFile.size)}]`);
                             }
-                            else {
+                            else if(file.isDirectory() && file.name != "webp") {
                                 await transformFolder(path + "\\" + file.name, (folder)? `${folder}/${file.name}`: file.name);
                             }
                         }
