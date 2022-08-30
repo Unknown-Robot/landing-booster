@@ -220,7 +220,7 @@ const main = async () => {
                     return "Please enter a valid landing folder path";
                 }
             });
-            landingPath = addProcess["new_path"];
+            landingPath = addProcess["new_path"].replace(/\\{1,2}$/, "");
         }
         else {
             landingPath = landingProcess["path"];
