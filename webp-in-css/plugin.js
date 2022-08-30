@@ -51,6 +51,10 @@ module.exports = (opts = {}) => {
         let rule = decl.parent
         if (rule.selector.includes(`.${removeBodyPrefix(noWebpClass)}`)) return
         let webp = rule.cloneAfter()
+        /* Remove original property to avoid download duplication */
+        rule.each(i => {
+          if (i.prop.includes("background-image")) i.remove();
+        });
         webp.each(i => {
           if (i.prop !== decl.prop && i.value !== decl.value) i.remove()
         })
