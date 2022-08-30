@@ -156,27 +156,53 @@ This folder contains all the work done by the tool.<br>
 
 ### [babel](#babel)
 <a name="babel"></a>
-In tool babel is used to convert javascript code for old browser, remove unused and minify javascript code.<br>
+Babel is used to convert javascript code for old browser, remove unused and minify javascript code.<br>
 Browser targets is specified with "targets" object in [babel.config.json](babel.config.json).<br>
 By default in tool the browser targets are IE version >= 11 and 2 latest version for other browser.<br>
 Need change browser targets see [documentation](https://babeljs.io/docs/en/babel-preset-env#targets).<br>
 
 ### [purgecss](#purgecss)
 <a name="purgecss"></a>
-In tool purgecss is used to remove unused CSS rules from HTML, Javascript and PHP files.<br>
+Purgecss is used to remove unused CSS rules from HTML, Javascript and PHP files.<br>
 By default in tool purgecss remove all CSS rules unused in css folder contains at the root of landing.<br>
 
 ### [postcss](#postcss)
 <a name="postcss"></a>
-In tool postcss is used to minify all CSS files.<br>
-By default in tool postcss minify all CSS files in css folder contains at the root of landing.<br>
+In tool postcss is used to transform and minify all CSS files.<br>
+By default in tool postcss transform and minify all CSS files in css folder contains at the root of landing.<br>
+The script inject [polyfill](webp-in-css/polyfill.js) in header, used to check if the browser is compatible with the .webp format.<br>
+All CSS rules use transformed images, will be converted by postcss with [plugin](webp-in-css/plugin.js).<br>
+
+Before conversion :
+```css
+header {
+    background-image: url(./images/background.jpeg);
+    background-position-x: -150px;
+    background-size: cover;
+}
+```
+After conversion :
+```css
+header {
+    background-position-x: -150px;
+    background-size: cover;
+}
+
+html.no-js header, html.no-webp header {
+    background-image: url(images/background.jpeg);
+}
+
+html.webp header {
+    background-image: url(images/background.webp);
+}
+```
 
 ### [sharp](#sharp)
 <a name="sharp"></a>
-In tool sharp is used to convert all compatible images to format .webp.<br>
-By default in tool, sharp only convert images of this types (png, jpg, jpeg, gif) in images folder contains at the root of landing.<br>
-All CSS rules use transformed images, will be converted by postcss with [plugin](webp-in-css/plugin.js).<br>
-The script inject [polyfill](webp-in-css/polyfill.js) in header and convert all img to picture HTML element in source code of HTML or PHP files.<br>
+Sharp is used to transform all compatible images to format .webp.<br>
+By default in tool, sharp only transform images of types (png, jpg, jpeg) inside images folder contains at the root of landing.<br>
+The script transform all img HTML element to picture in source code of HTML or PHP files.<br>
+
 Before conversion :
 ```html
 <img src="images/logo.png" alt="img"/>
