@@ -26,6 +26,15 @@ import model from "./config.js";
 /* OS Path folder script execution */
 const __dirname = resolve();
 
+/* Gracefully shutdown */
+const signals = ["SIGINT", "SIGTERM", "SIGQUIT"];
+for(const signal of signals) {
+    process.on(signal, () => {
+        /* Exit Nodejs process */
+        process.exit(0);
+    });
+}
+
 /* Main app entry */
 const main = async () => {
     let start = 0;
@@ -56,7 +65,7 @@ const main = async () => {
 
     try {
         /* Try to read config.json */
-        let data = await readFile(path.join(__dirname, "config.json"), "utf-8");
+        const data = await readFile(path.join(__dirname, "config.json"), "utf-8");
         /* Try to parse file data */
         config = JSON.parse(data);
     }
@@ -67,19 +76,20 @@ const main = async () => {
 
     try {
         /* Try to read webp-in-css/polyfill.js */
-        let data = await readFile(path.join(__dirname, "webp-in-css", "polyfill.js"), "utf-8");
-        polyfill = (data && data.length)? data: "";
+        const data = await readFile(path.join(__dirname, "webp-in-css", "polyfill.js"), "utf-8");
+        if(!data || !data.length) throw(new Error());
+        polyfill = data;
     }
     catch(error) {
-        if(error.code === "ENOENT") {
-            throw(new Error(`Cannot access file "webp-in-css/polyfill.js", please use command : git pull`));
-        }
+        throw(new Error(`Cannot access file "webp-in-css/polyfill.js", please use command : git reset --hard`));
     }
 
     /* Remove specify path to history["path"] */
     const removePath = (path) => {
-        let index = config["history"]["path"].findIndex((value) => value == path);
-        return config["history"]["path"].splice(index, 1);
+        const index = config["history"]["path"].findIndex((value) => value == path);
+        if(index !== -1) {
+            config["history"]["path"].splice(index, 1);
+        }
     }
 
     /* Console steps */
@@ -143,7 +153,8 @@ const main = async () => {
         config["history"]["path"].unshift(landingPath);
         /* Get user selected scripts */
         scripts = landingProcess["script"].map((value) => {
-            return value.split(" ")[0].toLowerCase();
+            const script = config["scripts"].find((script) => script["description"] === value);
+            return script["command"];
         });
         /* Set landing build path */
         landingBuildPath = path.join(landingPath, "build");
@@ -289,14 +300,15 @@ const main = async () => {
                     return "yes";
                 }
             });
+            /* Restart after user say yes */
             if(restartProcess["retry"].includes("yes") || restartProcess["retry"].toLowerCase() === "y") {
                 /* Jump line */
                 console.log("");
                 return await main();
             }
         }
+        /* Restart after cannot access landing path */
         else {
-            /* Restart after throw cannot access landing path error */
             return await main();
         }
         
@@ -310,6 +322,7 @@ const main = async () => {
         log(`Warning : Please always test your landing before transfer to production.`, "output");
         /* Show console cursor */
         process.stderr.write(ansiEscapes.cursorShow);
+        process.exit(0);
     }
 }
 
