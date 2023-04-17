@@ -7,7 +7,7 @@ import inquirer from "inquirer";
 import { constants } from "fs";
 import moment from "moment";
 
-import { formatBytes, getExtension, sortDirectory, sanitizePathEntry, log, clean } from "./utils/helpers.js";
+import { formatBytes, getExtension, sortDirectory, log, clean } from "./utils/helpers.js";
 import transformPurgecss from "./scripts/purgecss.js";
 import transformPostcss from "./scripts/postcss.js";
 import transformBabel from "./scripts/babel.js";
@@ -19,6 +19,7 @@ import model from "./config.js";
 /* 
     TODO: 
         - Test path system for Unix OS
+        - Add ignore files system (Maybe glob pattern)
         
 */
 
@@ -71,7 +72,7 @@ const main = async () => {
     }
     catch(error) {
         if(error.code === "ENOENT") {
-            throw(new Error(`Cannot access file "webp-in-css/polyfill.js", please use command : npm run update`));
+            throw(new Error(`Cannot access file "webp-in-css/polyfill.js", please use command : git pull`));
         }
     }
 
@@ -116,13 +117,20 @@ const main = async () => {
                 type: "input",
                 name: "new_path",
                 message: "Insert new landing folder path :",
-                validate(value) {
-                    const pass = sanitizePathEntry(value).match(/[a-zA-z]{1}:\\(?:[^\\/:*?"<>|\n]+\\*)*/i);
-                    if(value.length && pass) return true;
-                    return "Please enter a valid landing folder path";
+                async validate(value) {
+                    try {
+                        if(!value || !value.length) {
+                            return "Please enter a valid landing folder path";
+                        }
+                        await access(value, constants.R_OK | constants.W_OK);
+                        return true;
+                    }
+                    catch(error) {
+                        return "Cannot access landing folder, please check your path";
+                    }
                 }
             });
-            landingPath = addProcess["new_path"].replace(/\\{1,2}$/, "");
+            landingPath = addProcess["new_path"];
         }
         else {
             landingPath = landingProcess["path"];
@@ -242,7 +250,7 @@ const main = async () => {
     }
     catch(error) {
         if(error.code === "ENOENT") {
-            log("Cannot access landing folder, please check your folder path.", "error");
+            log("Cannot access landing folder, please check your path.", "error");
             /* Remove broken path if exist in history */
             removePath(landingPath);
             landingPath = null;
