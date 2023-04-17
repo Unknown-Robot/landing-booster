@@ -7,16 +7,11 @@ export const getExtension = (filename) => {
     return format[format.length - 1];
 }
 
-/* Sanitize path to Windows format */
-export const sanitizePathEntry = (path) => {
-    return path.replace("/", "\\").replace("\/", "\\");
-}
-
 /* Sort folder to first */
-export const sortDirectory = (files) => {
-    return files.sort((a, b) => {
-        return a.isDirectory() < b.isDirectory()? 1: -1;
-    });
+export const sortDirectory = (items) => {
+    const folders = items.filter((item) => item.isDirectory()).sort((a, b) => (a.name > b.name)? 1: -1);
+    const files = items.filter((item) => !item.isDirectory()).sort((a, b) => (a.name > b.name)? 1: -1);
+    return folders.concat(files);
 }
 
 /* Convert bytes format to string */
