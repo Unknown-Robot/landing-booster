@@ -26,15 +26,6 @@ import model from "./config.js";
 /* OS Path folder script execution */
 const __dirname = resolve();
 
-/* Gracefully shutdown */
-const signals = ["SIGINT", "SIGTERM", "SIGQUIT"];
-for(const signal of signals) {
-    process.on(signal, () => {
-        /* Exit Nodejs process */
-        process.exit(0);
-    });
-}
-
 /* Main app entry */
 const main = async () => {
     let start = 0;
@@ -127,7 +118,7 @@ const main = async () => {
                 type: "input",
                 name: "new_path",
                 message: "Insert new landing folder path :",
-                async validate(value) {
+                validate: async(value) => {
                     try {
                         if(!value || !value.length) {
                             return "Please enter a valid landing folder path";
