@@ -86,7 +86,7 @@ const main = async () => {
     const steps = [
         {
             type: "list",
-            message: "Select landing folder path :",
+            message: "Select landing path :",
             name: "path",
             choices: ["Insert new path", ...config["history"]["path"]]
         },
@@ -116,11 +116,11 @@ const main = async () => {
             let addProcess = await inquirer.prompt({
                 type: "input",
                 name: "new_path",
-                message: "Insert new landing folder path :",
+                message: "Insert new landing path :",
                 validate: async(value) => {
                     try {
                         if(!value || !value.length) {
-                            return "Please enter a valid landing folder path";
+                            return "Please enter a valid landing path";
                         }
                         await access(value, constants.R_OK | constants.W_OK);
                         return true;
@@ -158,8 +158,8 @@ const main = async () => {
         process.stderr.write(ansiEscapes.cursorHide);
         /* Create loader optimize loading */
         loader = createLoader(`Run booster script`);
-        /* Set start timestamp process */
-        start = moment().unix();
+        /* Set start moment date process */
+        start = moment();
         /* Perform all booster script */
         const tranformFiles = async(folder, build) => {
             const files = sortDirectory(await readdir(folder, { encoding: "utf8", withFileTypes: true }));
@@ -274,8 +274,12 @@ const main = async () => {
                 log(`Webp size saved : ${formatBytes(sourceImgSize - buildWebpSize)}`);
             }
             /* Show duration time */
-            if(start > 0) {
-                log(`Duration : ${moment().unix() - start} seconds`);
+            const startDiff = moment().diff(start, "milliseconds");
+            if(startDiff < 1000) {
+                log(`Duration : ${startDiff} ms`);
+            }
+            else {
+                log(`Duration : ${moment().diff(start, "seconds")} seconds`);
             }
             /* Show console cursor */
             process.stderr.write(ansiEscapes.cursorShow);
