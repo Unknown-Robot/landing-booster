@@ -7,7 +7,11 @@ export default {
         },
         {
             "command": "postcss",
-            "description": "Postcss (Transform background CSS rules, HTML img to picture)"
+            "description": "Postcss (Transform background CSS rules)"
+        },
+        {
+            "command": "webp",
+            "description": "Webp (Transform HTML <img> to <picture>)"
         },
         {
             "command": "purgecss",

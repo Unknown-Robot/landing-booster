@@ -18,8 +18,7 @@ import model from "./config.js";
 
 /* 
     TODO: 
-        - Test path system for Unix OS
-        - Add ignore files system (Maybe glob pattern)
+        - Add ignore files system : https://github.com/isaacs/minimatch
         
 */
 
@@ -68,11 +67,11 @@ const main = async () => {
     try {
         /* Try to read webp-in-css/polyfill.js */
         const data = await readFile(path.join(__dirname, "webp-in-css", "polyfill.js"), "utf-8");
-        if(!data || !data.length) throw(new Error());
+        if(!data || !data.length) throw(new Error("Webp polyfill is empty"));
         polyfill = data;
     }
     catch(error) {
-        throw(new Error(`Cannot access file "webp-in-css/polyfill.js", please use command : git reset --hard`));
+        throw(new Error(`Cannot access file "webp-in-css/polyfill.js", please use command : git pull`));
     }
 
     /* Remove specify path to history["path"] */
@@ -213,18 +212,18 @@ const main = async () => {
                             output.push(`Purgecss file : ${sourcePath}`);
                             source = await transformPurgecss(source, format, landingPath);
                         }
-                        if(scripts.includes("postcss")) {
-                            /* Transform source with postcss */
-                            if(["php", "html"].includes(format) && landingPath === folder.replace(`\/${file.name}`, "")
-                            || ["css"].includes(format) && folder.includes(path.join(landingPath, "css"))) {
-                                output.push(`Postcss file : ${sourcePath}`);
-                                source = await transformPostcss(source, format);
-                            }
-                            /* Transform source HTML img to picture */
-                            if(["php", "html"].includes(format) && landingPath === folder.replace(`\/${file.name}`, "")) {
-                                output.push(`Webp file : ${sourcePath}`);
-                                source = await transformWebp(source, format, polyfill);
-                            }
+                        /* Transform source with postcss */
+                        if(scripts.includes("postcss") && (
+                            ["php", "html"].includes(format) && landingPath === folder.replace(`\/${file.name}`, "")
+                            || ["css"].includes(format) && folder.includes(path.join(landingPath, "css"))
+                        )) {
+                            output.push(`Postcss file : ${sourcePath}`);
+                            source = await transformPostcss(source, format);
+                        }
+                        /* Transform source HTML img to picture */
+                        if(scripts.includes("webp") && ["php", "html"].includes(format) && landingPath === folder.replace(`\/${file.name}`, "")) {
+                            output.push(`Webp file : ${sourcePath}`);
+                            source = await transformWebp(source, format, polyfill);
                         }
                         /* Transform source with CSSO */
                         if(scripts.includes("csso") && ["php", "html", "css"].includes(format)) {
